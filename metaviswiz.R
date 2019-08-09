@@ -1,23 +1,50 @@
-# Function to 
+# Function to create List of distance/dissimilarity matrices 
+#Methods in decostand "total", "max", "frequency", "normalize", "range", "rank", "rrank", "standardize", "pa",  
+#Methods in vegdist "manhattan", "euclidean", "canberra", "clark", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup", "binomial", "chao", "cao" or "mahalanobis".
 
-DistList <- function(x, method) {
+DistList <- function(x, methods=c("totalbray", "totaleuclidean", "totalmanhattan"), relativize="before", namelist="distlist") {
   library(vegan)
-  if (sum(duplicated(method))>0) {
+  DistList <- list()
+  if (sum(duplicated(methods))>0) {
     stop(print("Duplicated entries in method"))
   } 
   
-  if (sum(method=="bray")==1) {
-    print("bray")
+  if (sum(methods=="totalbray")==1) {
+    if (relativize=="before") {
+      distmatrix<-vegdist(decostand(t(x), method="total"), 
+                        method="bray")
+      #Create list containing the dist matrices
+      distName <- paste( 'totalbray' )
+      DistList[[ distName ]]<-distmatrix
+    }
   }
   
-  if (sum(method=="euclidean")==1) {
-    print("euclidean")
+  if (sum(methods=="totaleuclidean")==1) {
+    if (relativize=="before") {
+      distmatrix<-vegdist(decostand(t(x), method="total"), 
+                          method="euclidean")
+      #Create list containing the dist matrices
+      distName <- paste( 'totalbray' )
+      DistList[[ distName ]]<-distmatrix
+    }    
   }
   
-  if (sum(method=="manhattan")==1) {
-    print("manhattan")
+  if (sum(methods=="totalmanhattan")==1) {
+    if (relativize=="before") {
+      distmatrix<-vegdist(decostand(t(x), method="total"), 
+                          method="manhattan")
+      #Create list containing the dist matrices
+      distName <- paste( 'totalbray' )
+      DistList[[ distName ]]<-distmatrix
+    }    
   }
 }
+
+# Function to append lists together
+
+
+
+
 
 DistList(method=c("euclidean", "manhattan", "euclidean"))
 DistList(method=c("euclidean", "manhattan"))
@@ -45,3 +72,4 @@ Testdata <- Testdata[rowSums(Testdata)>0,] #37 samples and 115 features
 
 rm(dietswap)
 
+DistList(Testdata)
