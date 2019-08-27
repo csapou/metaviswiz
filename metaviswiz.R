@@ -1,8 +1,9 @@
 # Function to create List of distance/dissimilarity matrices 
 #Methods in decostand "total", "max", "frequency", "normalize", "range", "rank", "rrank", "standardize", "pa",  
 #Methods in vegdist "manhattan", "euclidean", "canberra", "clark", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup", "binomial", "chao", "cao" or "mahalanobis".
+#The data should be provided with samples as columns and features as rows 
 
-DistList <- function(x, methods=c("totalbray", "totaleuclidean", "totalmanhattan"), relativize="before", namelist="distlist") {
+CreateDistList <- function(x, methods=c("totalbray", "totaleuclidean", "totalmanhattan"), relativize="before", namelist="distlist") {
   library(vegan)
   DistList <- list()
   if (sum(duplicated(methods))>0) {
@@ -24,7 +25,7 @@ DistList <- function(x, methods=c("totalbray", "totaleuclidean", "totalmanhattan
       distmatrix<-vegdist(decostand(t(x), method="total"), 
                           method="euclidean")
       #Create list containing the dist matrices
-      distName <- paste( 'totalbray' )
+      distName <- paste( 'totaleuclidean' )
       DistList[[ distName ]]<-distmatrix
     }    
   }
@@ -34,10 +35,11 @@ DistList <- function(x, methods=c("totalbray", "totaleuclidean", "totalmanhattan
       distmatrix<-vegdist(decostand(t(x), method="total"), 
                           method="manhattan")
       #Create list containing the dist matrices
-      distName <- paste( 'totalbray' )
+      distName <- paste( 'totalmanhattan' )
       DistList[[ distName ]]<-distmatrix
     }    
   }
+  return(DistList)
 }
 
 # Function to append lists together
@@ -46,8 +48,8 @@ DistList <- function(x, methods=c("totalbray", "totaleuclidean", "totalmanhattan
 
 
 
-DistList(method=c("euclidean", "manhattan", "euclidean"))
-DistList(method=c("euclidean", "manhattan"))
+#DistList(method=c("euclidean", "manhattan", "euclidean"))
+#DistList(method=c("euclidean", "manhattan"))
 
 
 
@@ -67,9 +69,10 @@ Testdata <- data.frame(dietswap@otu_table@.Data) #dim(Testdata) #222 samples and
 #Subset according to selected samples
 Testdata<-select(Testdata, one_of(Metadata$sample))
 
+
 #Remove features if they are not present in the subset of samples 
 Testdata <- Testdata[rowSums(Testdata)>0,] #37 samples and 115 features
 
 rm(dietswap)
 
-DistList(Testdata)
+CreateDistList(x=Testdata, method=c("euclidean", "manhattan"))
