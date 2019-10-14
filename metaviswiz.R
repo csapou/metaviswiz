@@ -555,8 +555,5 @@ VisWiz<-MetaVisWiz(Pairpro)
 #############################################################################################
 
 
-#MetaVisCor
-#Function creating correlelogram
-
 #AllOrdi
 #Function to create individual PCA and PCoA
