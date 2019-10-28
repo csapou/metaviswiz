@@ -32,8 +32,10 @@ rm(dietswap)
 #Methods in vegdist "manhattan", "euclidean", "canberra", "clark", "bray", "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup", "binomial", "chao", "cao" or "mahalanobis".
 #The data should be provided with samples as columns and features as rows 
 
-CreateDistList <- function(x, methods=c("totalbray", "totaleuclidean", "totalmanhattan")) {
-  library(vegan) #Have to remove
+CreateDistList <- function(x, methods=c("totalbray", "totaleuclidean", "totalmanhattan", "totalhellingerbray", "totalhellingereuclidean", "totalhellingermanhattan", "totallogbray", "totallogeuclidean", "totallogmanhattan", "rarbray", "rareuclidean", "rarmanhattan", "offaitchison", "estaitchison")) {
+  library(vegan) #Have to remove, but using the functions decostand and vegdist
+  library(compositions) #Have to remove, but using the clr function
+  library(zCompositions) #Have to remove, but using the imputations of zeroes, using the cmultRepl function
   DistList <- list() #Create empty list
   #Assess multiple of the same entries
   if (sum(duplicated(methods))>0) { #multiple equal entries evaluates as positive integers 
@@ -43,14 +45,23 @@ CreateDistList <- function(x, methods=c("totalbray", "totaleuclidean", "totalman
   
   #Assess if nonexistant methods are specified
   #Remember to update when adding more methods
-  possiblemethods<-c("totalbray", "totaleuclidean", "totalmanhattan", "totalhellingerbray", "totalhellingereuclidean", "totalhellingermanhattan") 
+  possiblemethods<-c("totalbray", "totaleuclidean", "totalmanhattan", 
+                     "totalhellingerbray", "totalhellingereuclidean", "totalhellingermanhattan", 
+                     "totallogbray", "totallogeuclidean", "totallogmanhattan",
+                     "rarbray", "rareuclidean", "rarmanhattan",
+                     "rarhellingerbray", "rarhellingereuclidean", "rarhellingermanhattan", 
+                     "rarlogbray", "rarlogeuclidean", "rarlogmanhattan",
+                     "offaitchison", "offlowaitchison", "estaitchison", "remaitchison",
+                     "jaccard") 
   #Remember to update when adding more methods
   if (length(setdiff(methods, possiblemethods))>0) { 
     for (i in 1:length(setdiff(methods, possiblemethods))) {
       warning(paste("Nonexistant methods specified", setdiff(methods, possiblemethods)[i]))
     }
   }   
-  
+
+  ## Methods implemented to go from count matrix to distance matrix.
+  # Scaling
   if (sum(methods=="totalbray")==1) {
     distmatrix<-vegdist(decostand(t(x), method="total"), 
                         method="bray") 
@@ -74,34 +85,181 @@ CreateDistList <- function(x, methods=c("totalbray", "totaleuclidean", "totalman
   
   if (sum(methods=="totalhellingerbray")==1) {
     distmatrix<-vegdist(decostand(decostand(t(x), method="total"), 
-                                  method="hellinger"), method="bray")
+                                  method="hellinger"), method="bray") #Equal sample sums are lost during transformation
     #Create list containing the dist matrices
     DistList[[ 'totalhellingerbray' ]]<-distmatrix
   }
   
   if (sum(methods=="totalhellingereuclidean")==1) {
     distmatrix<-vegdist(decostand(decostand(t(x), method="total"), 
-                                  method="hellinger"), method="euclidean")
+                                  method="hellinger"), method="euclidean") #Equal sample sums are lost during transformation
     #Create list containing the dist matrices
     DistList[[ 'totalhellingereuclidean' ]]<-distmatrix
   }
   
   if (sum(methods=="totalhellingermanhattan")==1) {
     distmatrix<-vegdist(decostand(decostand(t(x), method="total"), 
-                                  method="hellinger"), method="manhattan")
+                                  method="hellinger"), method="manhattan") #Equal sample sums are lost during transformation
     #Create list containing the dist matrices
     DistList[[ 'totalhellingermanhattan' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="totallogbray")==1) {
+    distmatrix<-vegdist(decostand(decostand(t(x), method="total"), #Zeroes remain zeroes
+                                  method="log"), method="bray") #Equal sample sums are lost during transformation
+    #Create list containing the dist matrices
+    DistList[[ 'totallogbray' ]]<-distmatrix
+  }
+  
+  # if (sum(methods=="totallogtestbray")==1) {
+    # distmatrix<-vegdist(decostand(decostand(t(x+1), method="total"), 
+                                  # method="log"), method="bray")
+    ## Create list containing the dist matrices
+    # DistList[[ 'totallogtestbray' ]]<-distmatrix
+  # } #Testing adding a count, but first data is scaled. Vegan implementation: "logarithmic transformation as suggested by Anderson et al. (2006): log_b (x) + 1 for x > 0, where b is the base of the logarithm; zeros are left as zeros. Higher bases give less weight to quantities and more to presences, and logbase = Inf gives the presence/absence scaling. Please note this is not log(x+1). Anderson et al. (2006) suggested this for their (strongly) modified Gower distance, but the standardization can be used independently of distance indices.". Possibly also want to implement user can define log bases. This comment concerns all of instances using the decostand implementation of log.   
+  
+  if (sum(methods=="totallogeuclidean")==1) {
+    distmatrix<-vegdist(decostand(decostand(t(x), method="total"), #Zeroes remain zeroes
+                                  method="log"), method="euclidean") #Equal sample sums are lost during transformation
+    #Create list containing the dist matrices
+    DistList[[ 'totallogeuclidean' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="totallogmanhattan")==1) {
+    distmatrix<-vegdist(decostand(decostand(t(x), method="total"), #Zeroes remain zeroes
+                                  method="log"), method="manhattan") #Equal sample sums are lost during transformation
+    #Create list containing the dist matrices
+    DistList[[ 'totallogmanhattan' ]]<-distmatrix
+  }
+
+  
+  # Rarefy 
+  # Possibly want to implement a set seed for the rarefying, to obtain stable results 
+  if (sum(methods=="rarbray")==1) {
+    rarx <- rrarefy(t(x), min(colSums(x))) #Rarefying using the rrarefy function from vegan
+    distmatrix<-vegdist(rarx, method="euclidean")
+    #Create list containing the dist matrices
+    DistList[[ 'rarbray' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="rareuclidean")==1) {
+    rarx <- rrarefy(t(x), min(colSums(x))) #Rarefying using the rrarefy function from vegan
+    distmatrix<-vegdist(rarx, method="euclidean")
+    #Create list containing the dist matrices
+    DistList[[ 'rareuclidean' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="rarmanhattan")==1) {
+    rarx <- rrarefy(t(x), min(colSums(x))) #Rarefying using the rrarefy function from vegan
+    distmatrix<-vegdist(rarx, method="manhattan")
+    #Create list containing the dist matrices
+    DistList[[ 'rarmanhattan' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="rarhellingerbray")==1) {
+    rarx <- rrarefy(t(x), min(colSums(x))) #Rarefying using the rrarefy function from vegan
+    distmatrix<-vegdist(decostand(rarx, method="hellinger"), method="bray") #Equal sample sums are lost during transformation
+    #Create list containing the dist matrices
+    DistList[[ 'rarhellingerbray' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="rarhellingereuclidean")==1) {
+    rarx <- rrarefy(t(x), min(colSums(x))) #Rarefying using the rrarefy function from vegan
+    distmatrix<-vegdist(decostand(rarx, method="hellinger"), method="euclidean") #Equal sample sums are lost during transformation
+    #Create list containing the dist matrices
+    DistList[[ 'rarhellingereuclidean' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="rarhellingermanhattan")==1) {
+    rarx <- rrarefy(t(x), min(colSums(x))) #Rarefying using the rrarefy function from vegan
+    distmatrix<-vegdist(decostand(rarx, method="hellinger"), method="manhattan") #Equal sample sums are lost during transformation
+    #Create list containing the dist matrices
+    DistList[[ 'rarhellingermanhattan' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="rarlogbray")==1) {
+    rarx <- rrarefy(t(x), min(colSums(x))) #Rarefying using the rrarefy function from vegan
+    distmatrix<-vegdist(decostand(rarx, method="log"), method="bray") #Equal sample sums are lost during transformation
+    #Create list containing the dist matrices
+    DistList[[ 'rarlogbray' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="rarlogeuclidean")==1) {
+    rarx <- rrarefy(t(x), min(colSums(x))) #Rarefying using the rrarefy function from vegan
+    distmatrix<-vegdist(decostand(rarx, method="log"), method="euclidean") #Equal sample sums are lost during transformation
+    #Create list containing the dist matrices
+    DistList[[ 'rarlogeuclidean' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="rarlogmanhattan")==1) {
+    rarx <- rrarefy(t(x), min(colSums(x))) #Rarefying using the rrarefy function from vegan
+    distmatrix<-vegdist(decostand(rarx, method="log"), method="manhattan") #Equal sample sums are lost during transformation
+    #Create list containing the dist matrices
+    DistList[[ 'rarlogmanhattan' ]]<-distmatrix
+  }
+  
+  
+  # Compositional
+  if (sum(methods=="offaitchison")==1) {
+    offx<-x+1 #Offset/pseudocount of 1, arguments of using 1 is that taking the log or ln of 1 returns value to 0 
+    clroffx<-clr(t(offx))
+    distmatrix<-vegdist(clroffx, 
+                        method="euclidean") 
+    #Create list containing the dist matrices
+    DistList[[ 'offaitchison' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="offlowaitchison")==1) {
+    offlowx<-x+0.0001 #Low offset/pseudocounts would like to implement user specification
+    clrofflowx<-clr(t(offlowx))
+    distmatrix<-vegdist(clrofflowx, 
+                        method="euclidean") 
+    #Create list containing the dist matrices
+    DistList[[ 'offlowaitchison' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="estaitchison")==1) {
+    estx<-cmultRepl(t(x), method="CZM", label=0) #CZM = multiplicative simple replacement
+    clrestx<-clr(estx)
+    distmatrix<-vegdist(clrestx, 
+                        method="euclidean") 
+    #Create list containing the dist matrices
+    DistList[[ 'estaitchison' ]]<-distmatrix
+  }
+  
+  if (sum(methods=="remaitchison")==1) {
+    row_sub = apply(x, 1, function(row) all(row !=0 )) #row_sub specifies all rows/features containing a zero
+    remx<-x[row_sub,] #Remove all rows/features containing a zero
+    clrremx<-clr(t(remx))
+    distmatrix<-vegdist(clrremx, 
+                        method="euclidean") 
+    #Create list containing the dist matrices
+    DistList[[ 'remaitchison' ]]<-distmatrix
+  }
+  
+  # Possibly don't have to include ILR. I also see the same results in my plots. "A second distance metric is the Aitchison distance, which is simply the Euclian distance between samples after clr transformation, and the distances between samples are the same as the phylogenetic ilr." From Gloor et al. 2017 Microbiome Datasets are compositional: And this is not optional.
+  
+  #Jaccard
+  if (sum(methods=="jaccard")==1) {
+    distmatrix<-vegdist(t(x), method="jaccard", binary=TRUE) #This is the same as vegdist(decostand(t(Testdata), method="pa"), method="jaccard")  
+    #Create list containing the dist matrices
+    DistList[[ 'jaccard' ]]<-distmatrix
   }
   
   return(DistList)
 }
 
 
+
+
+
+
 #############################################################################################
 #Testing CreateDistList Start#
 #############################################################################################
 
-DistList <- CreateDistList(x=Testdata, method=c("dssd", "sdadg", "totalbray", "totalmanhattan", "totalbray"))
+DistList <- CreateDistList(x=Testdata, method=c("dssd", "sdadg", "totalbray", "totalmanhattan", "totalbray", "offaitchison", "remaitchison", "rarhellingerbray", "rarhellingereuclidean", "rarhellingermanhattan", "rarlogbray", "rarlogeuclidean", "rarlogmanhattan"))
+DistList2 <- CreateDistList(x=Testdata)
 
 #############################################################################################
 #Testing CreateDistList End#
@@ -389,8 +547,9 @@ MetaVisWiz <- function(x, method="Cordist") {
   #and imaginary.u.eig ???. Info http://cc.oulu.fi/~jarioksa/softhelp/vegan/html/cca.object.html   
   PCoA<-as.data.frame(PCoACA$u)
   #Change colnames. Now add dis and trans info to names 
-  colnames(PCoA) <- c("MDS1","MDS2")
-  #If user want to modify code to plot additional MDS
+  #Select depending on user want to modify code to plot additional MDS. I went with 3 it is rarely you want to plot more and then no error is returned if few methods are compared
+  #colnames(PCoA) <- c("MDS1","MDS2") 
+  colnames(PCoA) <- c("MDS1","MDS2", "MDS3") 
   #colnames(PCoA) <- c("MDS1","MDS2", "MDS3","MDS4")
   #Add row names to df
   PCoA$Sample <- row.names(PCoA)
@@ -434,34 +593,37 @@ MetaVisWiz <- function(x, method="Cordist") {
   MetadataProC2<-merge(MetadataProC, PCoA, by="Sample")
   
   #Define coloring schemes to create procrustes PCoA/PCA
-  ProCCol<-c("chisq" = "#E41A1C", 
-             "freq" = "#4DAF4A", 
-             "max" = "#FFFF33", 
-             "norm" = "#A65628", 
-             "clr"="#E41A1C", 
-             "ilr"="#9f1214", 
-             "CSS"="#ed5e5f", 
-             "DESeq"="#377EB8", 
-             "TMM"="#265880", 
-             "hellinger"="#4DAF4A", 
-             "TSS_hellinger"="#357933", 
-             "log"="#984EA3", 
-             "TSS_log"="#5b2e61", 
-             "pa"="#FF7F00", 
-             "Rarefy"="#FFFF33", 
-             "TSS"="#A65628")
+  ProCCol<-c("chisq" = "#E41A1C", #Red
+             "freq" = "#4DAF4A", #Green
+             "max" = "#FFFF33", #Yellow
+             "norm" = "#A65628", #Brown
+             "clr" = "#E41A1C", #Red
+             "ilr" = "#9f1214", #Red
+             "CSS" = "#ed5e5f", #Light red
+             "DESeq" = "#377EB8", #Light blue
+             "TMM" = "#265880", #Dark blue
+             "hellinger" = "#4DAF4A", #Light green 
+             "TSS_hellinger" = "#357933", #Dark green
+             "log" = "#984EA3", #Purple
+             "TSS_log" = "#5b2e61", #Dark purple
+             "pa" = "#FF7F00", #Orange
+             "Rarefy" = "#FFFF33", #Ligt yellow
+             "TSS" = "#A65628", #Orange brown
+             "Other" = "#FF007F")
   #Define shape scheme to create procrustes PCoA/PCA
-  ProCShape<-c("altGower"=9, 
-               "binomial"=5, 
-               "bray"=3, 
-               "canberra"=6, 
-               "euclidean"=0, 
-               "gower"=8, 
-               "horn"=2, 
-               "jaccard"=1, 
-               "kulczynski"=7, 
-               "manhattan"=4) 
+  ProCShape<-c("altGower" = 9, 
+               "binomial" = 5, 
+               "bray" = 3, 
+               "canberra" = 6, 
+               "euclidean" = 0, 
+               "gower" = 8, 
+               "horn" = 2, 
+               "jaccard" = 1, 
+               "kulczynski" = 7, 
+               "manhattan" = 4,
+               "Other" = 11) 
   
+  FigureList$Metadata<-MetadataProC2
   #Plot PCoA
   FigureList$PCoA<-ggplot(MetadataProC2) + 
     #geom_line(aes(x=MDS1, y=MDS2, group=Matching_samples), size=0.1, linetype="dotted") +  
@@ -534,6 +696,8 @@ MetaVisWiz <- function(x, method="Cordist") {
            tl.srt = 25,
            addCoef.col = "white",
            diag=FALSE, 
+           number.digits = 3,
+           number.cex = 0.5,
            cl.lim = c(0, 1))
   dev.off()
   
@@ -544,9 +708,14 @@ MetaVisWiz <- function(x, method="Cordist") {
 #Testing MetaVisWiz Start#
 #############################################################################################
 
-DistList <- CreateDistList(x=Testdata, method=c("totaleuclidean", "totalmanhattan", "totalbray", "totalhellingermanhattan", "totalhellingerbray",  "totalhellingereuclidean"))
+DistList <- CreateDistList(x=Testdata, method=c("totalbray", "totaleuclidean", "totalmanhattan", "totalhellingerbray", "totalhellingereuclidean", "totalhellingermanhattan", "totallogbray", "totallogeuclidean", "totallogmanhattan", "rarbray", "rareuclidean", "rarmanhattan", "rarhellingerbray", "rarhellingereuclidean", "rarhellingermanhattan", "rarlogbray", "rarlogeuclidean", "rarlogmanhattan", "offaitchison", "offlowaitchison", "estaitchison", "remaitchison", "jaccard") ) #Getting warning from "totallogbray", "totallogeuclidean", "totallogmanhattan"
+# DistList <- CreateDistList(x=Testdata)
 Pairpro<-PairProtest(DistList)
 VisWiz<-MetaVisWiz(Pairpro)
+
+Meta<-VisWiz$Metadata
+library(plotly)
+ggplotly(VisWiz$PCoA)
 
 
 
